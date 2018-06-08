@@ -1,56 +1,33 @@
-cmake_minimum_required (VERSION 3.2.0)
-project (DiscordRPC)
+cmake_minimum_required (VERSION 3.1)
 
-include(GNUInstallDirs)
+project (discord)
 
-option(BUILD_EXAMPLES "Build example apps" ON)
+include (../../Tools/LinuxBuild/shared.cmake)
 
-# format
-file(GLOB_RECURSE ALL_SOURCE_FILES
-    examples/*.cpp examples/*.h examples/*.c
-    include/*.h
-    src/*.cpp src/*.h src/*.c
-)
+include_directories (${CMAKE_CURRENT_SOURCE_DIR}/../)
 
-# Set CLANG_FORMAT_SUFFIX if you are using custom clang-format, e.g. clang-format-5.0
-find_program(CLANG_FORMAT_CMD clang-format${CLANG_FORMAT_SUFFIX})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../libs)
 
-if (CLANG_FORMAT_CMD)
-    add_custom_target(
-        clangformat
-        COMMAND ${CLANG_FORMAT_CMD}
-        -i -style=file -fallback-style=none
-        ${ALL_SOURCE_FILES}
-        DEPENDS
-        ${ALL_SOURCE_FILES}
-    )
-endif(CLANG_FORMAT_CMD)
+include_directories(include deps/rapidjson-1.1.0/include)
 
-# thirdparty stuff
-execute_process(
-    COMMAND mkdir ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
-    ERROR_QUIET
-)
+if (EX_TARGET_OS STREQUAL "Darwin")
+	file(GLOB MySRC
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/connection_unix.cpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/discord_register_osx.m" # Only on OSX
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/discord_register_linux.cpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/discord_rpc.cpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/rpc_connection.cpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/serialization.cpp"
+	)
+else ()
+	file(GLOB MySRC
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/connection_unix.cpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/discord_register_linux.cpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/discord_rpc.cpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/rpc_connection.cpp"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/serialization.cpp"
+	)
+endif ()
 
-find_file(RAPIDJSONTEST NAMES rapidjson rapidjson-1.1.0 PATHS ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty CMAKE_FIND_ROOT_PATH_BOTH)
-if (NOT RAPIDJSONTEST)
-    message("no rapidjson, download")
-    set(RJ_TAR_FILE ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/v1.1.0.tar.gz)
-    file(DOWNLOAD https://github.com/miloyip/rapidjson/archive/v1.1.0.tar.gz ${RJ_TAR_FILE})
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar xzf ${RJ_TAR_FILE}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
-    )
-    file(REMOVE ${RJ_TAR_FILE})
-endif(NOT RAPIDJSONTEST)
-
-find_file(RAPIDJSON NAMES rapidjson rapidjson-1.1.0 PATHS ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty CMAKE_FIND_ROOT_PATH_BOTH)
-
-add_library(rapidjson STATIC IMPORTED ${RAPIDJSON})
-
-# add subdirs
-
-add_subdirectory(src)
-if (BUILD_EXAMPLES)
-    add_subdirectory(examples/send-presence)
-endif(BUILD_EXAMPLES)
+add_library (${PROJECT_NAME} STATIC ${MySRC})
+set_target_properties (${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}${EX_PLATFORM}" PREFIX "")
